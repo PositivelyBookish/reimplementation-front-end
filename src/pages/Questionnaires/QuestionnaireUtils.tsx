@@ -2,6 +2,7 @@ import axiosClient from "../../utils/axios_client";
 import { IInstructor } from "../../utils/interfaces";
 
 export type QuestionnaireType =
+  | "Review"
   | "Author feedback"
   | "Teammate Review"
   | "Survey"
@@ -13,6 +14,7 @@ export type QuestionnaireType =
 
 
 export const QuestionnaireTypes: QuestionnaireType[] = [
+  "Review",
   "Author feedback",
   "Teammate Review",
   "Survey",
@@ -92,13 +94,26 @@ export function getQuestionnaireTypes(quest: QuestionnaireResponse[]): string[] 
   );
 }
 
+const QUESTIONNAIRE_TYPE_VALUE_MAP: Record<string, string> = {
+  Review: "ReviewQuestionnaire",
+  "Author feedback": "AuthorFeedbackQuestionnaire",
+  "Teammate Review": "TeammateReviewQuestionnaire",
+  Survey: "SurveyQuestionnaire",
+  "Assignment survey": "AssignmentSurveyQuestionnaire",
+  "Global survey": "GlobalSurveyQuestionnaire",
+  "Course survey": "CourseSurveyQuestionnaire",
+  "Bookmark rating": "BookmarkRatingQuestionnaire",
+  Quiz: "QuizQuestionnaire",
+};
 
 export const transformQuestionnaireRequest = (values: QuestionnaireFormValues) => {
   console.log("Original Form Values:", values);
   const questionnaire: QuestionnaireRequest = {
     id: values.id,
     name: values.name,
-    questionnaire_type: values.questionnaire_type.replace(/\s+/g, ""),
+    questionnaire_type:
+      QUESTIONNAIRE_TYPE_VALUE_MAP[values.questionnaire_type] ??
+      values.questionnaire_type.replace(/\s+/g, ""),
     private: values.private,
     min_question_score: values.min_question_score,
     max_question_score: values.max_question_score,
