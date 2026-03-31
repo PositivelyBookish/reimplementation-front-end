@@ -12,7 +12,6 @@ export type QuestionnaireType =
   | "Bookmark rating"
   | "Quiz";
 
-
 export const QuestionnaireTypes: QuestionnaireType[] = [
   "Review",
   "Author feedback",
