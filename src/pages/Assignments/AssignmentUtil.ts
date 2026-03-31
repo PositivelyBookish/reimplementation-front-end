@@ -8,7 +8,6 @@ export interface IAssignmentFormValues {
   directory_path: string;
   spec_location: string;
   private: boolean;
-  show_template_review: boolean;
   require_quiz: boolean;
   has_badge: boolean;
   staggered_deadline: boolean;
@@ -78,6 +77,7 @@ export interface IAssignmentFormValues {
     used_in_round?: number;
     questionnaire?: { id: number; name: string };
   }[];
+  vary_by_topic?: boolean;
   [key: string]: any;
 }
 
@@ -107,7 +107,6 @@ export const transformAssignmentRequest = (values: IAssignmentFormValues) => {
 
     // Visibility / basic flags
     private: values.private,
-    show_template_review: values.show_template_review ?? false,
     require_quiz: values.require_quiz ?? false,
     has_badge: values.has_badge ?? false,
     staggered_deadline: values.staggered_deadline ?? false,
@@ -174,6 +173,7 @@ export const transformAssignmentRequest = (values: IAssignmentFormValues) => {
     staggered_deadline_assignment: values.staggered_deadline_assignment ?? false,
 
     // Per-round rubric configuration
+    vary_by_topic: values.review_rubric_varies_by_topic ?? false,
     vary_by_round: values.review_rubric_varies_by_round,
     rounds_of_reviews: values.number_of_review_rounds,
     assignment_questionnaires_attributes: assignmentQuestionnaires,
@@ -229,7 +229,6 @@ export const transformAssignmentResponse = (assignmentResponse: string) => {
     directory_path: assignment.directory_path,
     spec_location: assignment.spec_location,
     private: assignment.private,
-    show_template_review: assignment.show_template_review ?? false,
     require_quiz: assignment.require_quiz,
     has_badge: assignment.has_badge,
     staggered_deadline: assignment.staggered_deadline,
@@ -238,6 +237,7 @@ export const transformAssignmentResponse = (assignmentResponse: string) => {
     // review rounds / rubrics
     review_rubric_varies_by_round:
       assignment.varying_rubrics_by_round ?? assignment.vary_by_round,
+    review_rubric_varies_by_topic: assignment.vary_by_topic ?? false,
     number_of_review_rounds: assignment.num_review_rounds,
 
     // precomputed date/time fields for the Due dates tab
