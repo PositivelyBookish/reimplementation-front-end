@@ -532,8 +532,8 @@ const AssignmentEditor: React.FC<IEditor> = ({ mode }) => {
           // TODO: Implement partner ad application logic
         }, []);
 
-        const findTopicRubricMapping = useCallback((topicDatabaseId: number, usedInRound: number | null) => {
-          return topicRubricMappings.find((mapping) =>
+        const findTopicRubricMappings = useCallback((topicDatabaseId: number, usedInRound: number | null) => {
+          return topicRubricMappings.filter((mapping) =>
             Number(mapping.project_topic_id) === Number(topicDatabaseId) &&
             (mapping.used_in_round ?? null) === (usedInRound ?? null)
           );
@@ -541,32 +541,25 @@ const AssignmentEditor: React.FC<IEditor> = ({ mode }) => {
 
         const handleTopicRubricChange = useCallback(async (
           topicDatabaseId: number,
-          questionnaireId: number | null,
+          questionnaireIds: number[],
           usedInRound: number | null
         ) => {
           if (!id) return;
 
-          const existingMapping = findTopicRubricMapping(topicDatabaseId, usedInRound);
+          const existingMappings = findTopicRubricMappings(topicDatabaseId, usedInRound);
+          const existingQuestionnaireIds = existingMappings.map((mapping) => Number(mapping.questionnaire_id));
+          const questionnaireIdsToCreate = questionnaireIds.filter((questionnaireId) => !existingQuestionnaireIds.includes(questionnaireId));
+          const mappingsToDelete = existingMappings.filter((mapping) => !questionnaireIds.includes(Number(mapping.questionnaire_id)));
 
           try {
-            if (!questionnaireId) {
-              if (existingMapping) {
-                await saveTopicRubricMapping({
-                  url: `/assignment_questionnaires/${existingMapping.id}`,
-                  method: HttpMethod.DELETE,
-                });
-              }
-            } else if (existingMapping) {
+            for (const mapping of mappingsToDelete) {
               await saveTopicRubricMapping({
-                url: `/assignment_questionnaires/${existingMapping.id}`,
-                method: HttpMethod.PATCH,
-                data: {
-                  assignment_questionnaire: {
-                    questionnaire_id: questionnaireId,
-                  },
-                },
+                url: `/assignment_questionnaires/${mapping.id}`,
+                method: HttpMethod.DELETE,
               });
-            } else {
+            }
+
+            for (const questionnaireId of questionnaireIdsToCreate) {
               await saveTopicRubricMapping({
                 url: `/assignment_questionnaires`,
                 method: HttpMethod.POST,
@@ -586,7 +579,7 @@ const AssignmentEditor: React.FC<IEditor> = ({ mode }) => {
           } catch {
             // useAPI surfaces the request error through saveTopicRubricError.
           }
-        }, [dispatch, findTopicRubricMapping, id, refreshTopicRubricMappings, saveTopicRubricMapping]);
+        }, [dispatch, findTopicRubricMappings, id, refreshTopicRubricMappings, saveTopicRubricMapping]);
       
 
 

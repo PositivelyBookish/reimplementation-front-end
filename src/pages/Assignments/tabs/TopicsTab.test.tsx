@@ -60,12 +60,13 @@ describe("TopicsTab topic rubric selectors", () => {
     expect(row).not.toBeNull();
     const rubricSelect = within(row as HTMLElement).getByLabelText("Rubric for Security Topic") as HTMLSelectElement;
 
-    expect(rubricSelect.value).toBe("7");
-    expect(within(rubricSelect).getByText("Use assignment default rubric")).toBeInTheDocument();
+    expect(rubricSelect.multiple).toBe(true);
+    expect(Array.from(rubricSelect.selectedOptions).map((option) => option.value)).toEqual(["7"]);
     expect(within(rubricSelect).getByText("Security Rubric")).toBeInTheDocument();
+    expect(screen.getByText("Leave all rubrics unselected to use the assignment default rubric.")).toBeInTheDocument();
   });
 
-  it("sends topic, questionnaire, and round when a topic rubric changes", () => {
+  it("sends topic, questionnaires, and round when topic rubrics change", () => {
     const onTopicRubricChange = vi.fn();
 
     render(
@@ -74,14 +75,20 @@ describe("TopicsTab topic rubric selectors", () => {
         varyByTopic
         varyByRound
         reviewRounds={2}
-        reviewRubricOptions={[{ label: "Round Rubric", value: 8 }]}
+        reviewRubricOptions={[
+          { label: "Round Rubric", value: 8 },
+          { label: "Extra Rubric", value: 9 },
+        ]}
         onTopicRubricChange={onTopicRubricChange}
       />
     );
 
-    const roundTwoSelect = screen.getByLabelText("Round 2 for Security Topic");
-    fireEvent.change(roundTwoSelect, { target: { value: "8" } });
+    const roundTwoSelect = screen.getByLabelText("Round 2 for Security Topic") as HTMLSelectElement;
+    const options = within(roundTwoSelect).getAllByRole("option") as HTMLOptionElement[];
+    options[0].selected = true;
+    options[1].selected = true;
+    fireEvent.change(roundTwoSelect);
 
-    expect(onTopicRubricChange).toHaveBeenCalledWith(10, 8, 2);
+    expect(onTopicRubricChange).toHaveBeenCalledWith(10, [8, 9], 2);
   });
 });

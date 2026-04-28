@@ -100,7 +100,7 @@ interface TopicsTabProps {
   onCreateTopic?: (topicData: any) => void;
   // Handler for partner ad application submission
   onApplyPartnerAd: (topicId: string, applicationText: string) => void;
-  onTopicRubricChange?: (topicDatabaseId: number, questionnaireId: number | null, usedInRound: number | null) => void;
+  onTopicRubricChange?: (topicDatabaseId: number, questionnaireIds: number[], usedInRound: number | null) => void;
   onTopicsChanged?: () => void;
 }
 
@@ -340,43 +340,45 @@ const TopicsTab = ({
     ? Array.from({ length: Math.max(reviewRounds || 1, 1) }, (_, index) => index + 1)
     : [null];
 
-  const findTopicRubricMapping = (topicDatabaseId?: number, usedInRound?: number | null) => {
-    if (!topicDatabaseId) return undefined;
+  const findTopicRubricMappings = (topicDatabaseId?: number, usedInRound?: number | null) => {
+    if (!topicDatabaseId) return [];
 
-    return topicRubricMappings.find((mapping) =>
+    return topicRubricMappings.filter((mapping) =>
       Number(mapping.project_topic_id) === Number(topicDatabaseId) &&
       (mapping.used_in_round ?? null) === (usedInRound ?? null)
     );
   };
 
   const renderRubricSelector = (topic: TopicData, usedInRound: number | null) => {
-    const mapping = findTopicRubricMapping(topic.databaseId, usedInRound);
+    const mappings = findTopicRubricMappings(topic.databaseId, usedInRound);
     const label = usedInRound ? `Round ${usedInRound}` : "Rubric";
+    const selectedQuestionnaireIds = mappings.map((mapping) => String(mapping.questionnaire_id));
 
     return (
       <div key={`${topic.databaseId}-${usedInRound ?? "default"}`} className="mb-2">
         {varyByRound && <div className="small text-muted mb-1">{label}</div>}
         <Form.Select
+          multiple
           size="sm"
-          value={mapping?.questionnaire_id ?? ""}
+          value={selectedQuestionnaireIds}
           disabled={reviewRubricOptions.length === 0}
           aria-label={`${label} for ${topic.name}`}
           onChange={(event) => {
-            const value = event.target.value;
+            const values = Array.from(event.target.selectedOptions).map((option) => Number(option.value));
             onTopicRubricChange?.(
               topic.databaseId,
-              value ? Number(value) : null,
+              values,
               usedInRound
             );
           }}
         >
-          <option value="">Use assignment default rubric</option>
           {reviewRubricOptions.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>
           ))}
         </Form.Select>
+        <div className="small text-muted mt-1">Leave all rubrics unselected to use the assignment default rubric.</div>
       </div>
     );
   };
