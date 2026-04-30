@@ -64,6 +64,9 @@ interface TopicRubricMapping {
 const getTopicRubricMappingKey = (topicDatabaseId: number, usedInRound: number | null) =>
   `${topicDatabaseId}-${usedInRound ?? "default"}`;
 
+const AUTHOR_FEEDBACK_RUBRIC_ROW_KEY = 100;
+const TEAMMATE_REVIEW_RUBRIC_ROW_KEY = 101;
+
 const initialValues: IAssignmentFormValues = {
   name: "",
   directory_path: "",
@@ -921,6 +924,7 @@ const AssignmentEditor: React.FC<IEditor> = ({ mode }) => {
                           return Array.from({ length: rounds }, (_, i) => ([
                             {
                               id: i + 1,
+                              rowKey: i + 1,
                               title: `Review round ${i + 1}:`,
                               questionnaire_options: questionnaireOptions,
                               selected_questionnaire: roundSelections[i + 1]?.id,
@@ -936,6 +940,7 @@ const AssignmentEditor: React.FC<IEditor> = ({ mode }) => {
                         return [
                           {
                             id: 0,
+                            rowKey: 0,
                             title: "Review rubric:",
                             questionnaire_options: questionnaireOptions,
                             selected_questionnaire: roundSelections[1]?.id,
@@ -950,6 +955,7 @@ const AssignmentEditor: React.FC<IEditor> = ({ mode }) => {
                       })(),
                       {
                         id: formik.values.number_of_review_rounds ?? 0,
+                        rowKey: AUTHOR_FEEDBACK_RUBRIC_ROW_KEY,
                         title: "Author feedback:",
                         questionnaire_options: [{ label: 'Standard author feedback', value: 'Standard author feedback' }],
                         questionnaire_type: 'dropdown',
@@ -961,6 +967,7 @@ const AssignmentEditor: React.FC<IEditor> = ({ mode }) => {
                       },
                       {
                         id: (formik.values.number_of_review_rounds ?? 0) + 1,
+                        rowKey: TEAMMATE_REVIEW_RUBRIC_ROW_KEY,
                         title: "Teammate review:",
                         questionnaire_options: [{ label: 'Review with Github metrics', value: 'Review with Github metrics' }],
                         questionnaire_type: 'dropdown',
@@ -979,15 +986,14 @@ const AssignmentEditor: React.FC<IEditor> = ({ mode }) => {
                       {
                         cell: ({ row }) => <div style={{ marginRight: '10px' }}>{row.original.questionnaire_type === 'dropdown' &&
                           (() => {
+                            const rubricRowKey = row.original.rowKey ?? row.original.id;
                             let questionnaireFieldName = `questionnaire_round_${row.original.id}`;
-                            let questionnaireControlId = `assignment-questionnaire_${row.original.id}`;
+                            let questionnaireControlId = `assignment-questionnaire_${rubricRowKey}`;
 
                             if (row.original.title === "Author feedback:") {
                               questionnaireFieldName = "author_feedback_questionnaire";
-                              questionnaireControlId = "assignment-author_feedback_questionnaire";
                             } else if (row.original.title === "Teammate review:") {
                               questionnaireFieldName = "teammate_review_questionnaire";
-                              questionnaireControlId = "assignment-teammate_review_questionnaire";
                             }
 
                             return (
@@ -1010,24 +1016,14 @@ const AssignmentEditor: React.FC<IEditor> = ({ mode }) => {
                             return <div style={{ marginRight: '10px' }} />;
                           }
 
-                          // Use distinct indices in the weights array so that
-                          // different rows (review rubric, author feedback,
-                          // teammate review, etc.) do not overwrite each other.
-                          let weightIndex: number;
-                          if (row.original.title === "Author feedback:") {
-                            weightIndex = 100; // separate slot for author feedback
-                          } else if (row.original.title === "Teammate review:") {
-                            weightIndex = 101; // separate slot for teammate review
-                          } else {
-                            weightIndex = row.original.id;
-                          }
+                          const rubricRowKey = row.original.rowKey ?? row.original.id;
 
                           return (
                             <div style={{ marginRight: '10px' }}>
                               <div style={{ width: '70px', display: 'flex', alignItems: 'center' }}>
                                 <FormInput
-                                  controlId={`assignment-weight_${row.original.id}`}
-                                  name={`weights[${weightIndex}]`}
+                                  controlId={`assignment-weight_${rubricRowKey}`}
+                                  name={`weights[${rubricRowKey}]`}
                                   type="number"
                                 />
                                 %
@@ -1038,8 +1034,24 @@ const AssignmentEditor: React.FC<IEditor> = ({ mode }) => {
                         accessorKey: `weights`, header: "Weight", enableSorting: false, enableColumnFilter: false
                       },
                       {
-                        cell: ({ row }) => <>{row.original.questionnaire_type === 'dropdown' &&
-                          <><div style={{ width: '70px', display: 'flex', alignItems: 'center' }}><FormInput controlId={`assignment-notification_limit_${row.original.id}`} name={`notification_limits[${row.original.id}]`} type="number" />%</div></>}</>,
+                        cell: ({ row }) => {
+                          if (row.original.questionnaire_type !== 'dropdown') {
+                            return null;
+                          }
+
+                          const rubricRowKey = row.original.rowKey ?? row.original.id;
+
+                          return (
+                            <div style={{ width: '70px', display: 'flex', alignItems: 'center' }}>
+                              <FormInput
+                                controlId={`assignment-notification_limit_${rubricRowKey}`}
+                                name={`notification_limits[${rubricRowKey}]`}
+                                type="number"
+                              />
+                              %
+                            </div>
+                          );
+                        },
                         accessorKey: "notification_limits", header: "Notification Limit", enableSorting: false, enableColumnFilter: false
                       },
                     ]}

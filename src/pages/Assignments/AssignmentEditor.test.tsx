@@ -93,6 +93,40 @@ describe("AssignmentEditor rubrics tab", () => {
     expect(allOptions).toContain("Unlinked Rubric");
   });
 
+  it("uses distinct row keys for special rubric field names and control ids", () => {
+    render(<AssignmentEditor mode="update" />);
+
+    const getRow = (label: string) => {
+      const row = screen.getByText(label).closest("tr");
+      expect(row).not.toBeNull();
+      return row as HTMLElement;
+    };
+
+    const expectRubricFields = (
+      row: HTMLElement,
+      questionnaireName: string,
+      rowKey: number
+    ) => {
+      const questionnaire = within(row).getByRole("combobox") as HTMLSelectElement;
+      const numericInputs = within(row).getAllByRole("spinbutton") as HTMLInputElement[];
+
+      expect(questionnaire.name).toBe(questionnaireName);
+      expect(questionnaire.id).toBe(`assignment-questionnaire_${rowKey}`);
+      expect(numericInputs.map((input) => input.name)).toEqual([
+        `weights[${rowKey}]`,
+        `notification_limits[${rowKey}]`,
+      ]);
+      expect(numericInputs.map((input) => input.id)).toEqual([
+        `assignment-weight_${rowKey}`,
+        `assignment-notification_limit_${rowKey}`,
+      ]);
+    };
+
+    expectRubricFields(getRow("Review round 2:"), "questionnaire_round_2", 2);
+    expectRubricFields(getRow("Author feedback:"), "author_feedback_questionnaire", 100);
+    expectRubricFields(getRow("Teammate review:"), "teammate_review_questionnaire", 101);
+  });
+
 });
 
 describe("transformAssignmentRequest", () => {
