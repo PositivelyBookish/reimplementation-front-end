@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { QuestionnaireTypes, transformQuestionnaireRequest } from "./QuestionnaireUtils";
+import {
+  QuestionnaireTypes,
+  transformQuestionnaireRequest,
+  transformQuestionnaireResponse,
+} from "./QuestionnaireUtils";
 
 describe("Questionnaire type mappings", () => {
   it("includes Review in the questionnaire type list", () => {
@@ -18,5 +22,19 @@ describe("Questionnaire type mappings", () => {
     });
 
     expect(payload.questionnaire.questionnaire_type).toBe("ReviewQuestionnaire");
+  });
+
+  it("normalizes backend review questionnaire types for edit forms", () => {
+    const values = transformQuestionnaireResponse({
+      id: 1,
+      name: "Security Review Rubric",
+      questionnaire_type: "ReviewQuestionnaire",
+      private: false,
+      min_question_score: 0,
+      max_question_score: 5,
+      items: [],
+    });
+
+    expect(values.questionnaire_type).toBe("Review");
   });
 });

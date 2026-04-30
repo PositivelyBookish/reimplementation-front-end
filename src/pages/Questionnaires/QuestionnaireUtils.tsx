@@ -126,12 +126,15 @@ export const transformQuestionnaireRequest = (values: QuestionnaireFormValues) =
   return { questionnaire };
 };
 
+const normalizeQuestionnaireType = (questionnaireType: string) =>
+  questionnaireType === "ReviewQuestionnaire" ? "Review" : questionnaireType;
+
 export const transformQuestionnaireResponse = (data: any): QuestionnaireFormValues => {
   return {
     id: data.id,
     name: data.name,
     private: data.private,
-    questionnaire_type: data.questionnaire_type,
+    questionnaire_type: normalizeQuestionnaireType(data.questionnaire_type),
     min_question_score: data.min_question_score,
     max_question_score: data.max_question_score,
     instructor_id: data.instructor_id,
