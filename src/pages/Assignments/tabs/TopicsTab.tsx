@@ -100,6 +100,7 @@ interface TopicsTabProps {
   onCreateTopic?: (topicData: any) => void;
   // Handler for partner ad application submission
   onApplyPartnerAd: (topicId: string, applicationText: string) => void;
+  isTopicRubricMappingPending?: (topicDatabaseId: number, usedInRound: number | null) => boolean;
   onTopicRubricChange?: (topicDatabaseId: number, questionnaireId: number | null, usedInRound: number | null) => void;
   onTopicsChanged?: () => void;
 }
@@ -124,6 +125,7 @@ const TopicsTab = ({
   onEditTopic,
   onCreateTopic,
   onApplyPartnerAd,
+  isTopicRubricMappingPending,
   onTopicRubricChange,
   onTopicsChanged,
 }: TopicsTabProps) => {
@@ -352,6 +354,7 @@ const TopicsTab = ({
   const renderRubricSelector = (topic: TopicData, usedInRound: number | null) => {
     const mapping = findTopicRubricMapping(topic.databaseId, usedInRound);
     const label = usedInRound ? `Round ${usedInRound}` : "Rubric";
+    const isSaving = isTopicRubricMappingPending?.(topic.databaseId, usedInRound) ?? false;
 
     return (
       <div key={`${topic.databaseId}-${usedInRound ?? "default"}`} className="mb-2">
@@ -359,7 +362,8 @@ const TopicsTab = ({
         <Form.Select
           size="sm"
           value={mapping?.questionnaire_id ?? ""}
-          disabled={reviewRubricOptions.length === 0}
+          disabled={reviewRubricOptions.length === 0 || isSaving}
+          aria-busy={isSaving}
           aria-label={`${label} for ${topic.name}`}
           onChange={(event) => {
             const value = event.target.value;

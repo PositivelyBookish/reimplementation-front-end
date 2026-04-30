@@ -4,7 +4,7 @@ import { Button, Modal } from "react-bootstrap";
 import { Form, Formik, FormikHelpers } from "formik";
 import { IAssignmentFormValues, transformAssignmentRequest } from "./AssignmentUtil";
 import { IEditor } from "../../utils/interfaces";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useLoaderData, useLocation, useNavigate, useParams } from "react-router-dom";
 import FormInput from "../../components/Form/FormInput";
@@ -60,6 +60,9 @@ interface TopicRubricMapping {
   project_topic_id: number | null;
   used_in_round: number | null;
 }
+
+const getTopicRubricMappingKey = (topicDatabaseId: number, usedInRound: number | null) =>
+  `${topicDatabaseId}-${usedInRound ?? "default"}`;
 
 const initialValues: IAssignmentFormValues = {
   name: "",
@@ -176,6 +179,8 @@ const AssignmentEditor: React.FC<IEditor> = ({ mode }) => {
   const [selectedDutyIds, setSelectedDutyIds] = useState<number[]>([]);
   const [roleBasedLocalError, setRoleBasedLocalError] = useState<string | null>(null);
   const [topicRubricMappings, setTopicRubricMappings] = useState<TopicRubricMapping[]>([]);
+  const [pendingTopicRubricMappingKeys, setPendingTopicRubricMappingKeys] = useState<Set<string>>(new Set());
+  const pendingTopicRubricMappingKeysRef = useRef<Set<string>>(new Set());
 
 
    useEffect(() => {
@@ -303,8 +308,8 @@ const AssignmentEditor: React.FC<IEditor> = ({ mode }) => {
     }, [id, fetchTopics]);
 
   const refreshTopicRubricMappings = useCallback(() => {
-    if (!id) return;
-    fetchTopicRubricMappings({ url: `/assignment_questionnaires?assignment_id=${id}` });
+    if (!id) return Promise.resolve();
+    return fetchTopicRubricMappings({ url: `/assignment_questionnaires?assignment_id=${id}` });
   }, [fetchTopicRubricMappings, id]);
 
   useEffect(() => {
@@ -535,6 +540,21 @@ const AssignmentEditor: React.FC<IEditor> = ({ mode }) => {
           );
         }, [topicRubricMappings]);
 
+        const updateTopicRubricMappingPending = useCallback((key: string, isPending: boolean) => {
+          const nextKeys = new Set(pendingTopicRubricMappingKeysRef.current);
+          if (isPending) {
+            nextKeys.add(key);
+          } else {
+            nextKeys.delete(key);
+          }
+          pendingTopicRubricMappingKeysRef.current = nextKeys;
+          setPendingTopicRubricMappingKeys(nextKeys);
+        }, []);
+
+        const isTopicRubricMappingPending = useCallback((topicDatabaseId: number, usedInRound: number | null) => {
+          return pendingTopicRubricMappingKeys.has(getTopicRubricMappingKey(topicDatabaseId, usedInRound));
+        }, [pendingTopicRubricMappingKeys]);
+
         const handleTopicRubricChange = useCallback(async (
           topicDatabaseId: number,
           questionnaireId: number | null,
@@ -542,6 +562,10 @@ const AssignmentEditor: React.FC<IEditor> = ({ mode }) => {
         ) => {
           if (!id) return;
 
+          const mappingKey = getTopicRubricMappingKey(topicDatabaseId, usedInRound);
+          if (pendingTopicRubricMappingKeysRef.current.has(mappingKey)) return;
+
+          updateTopicRubricMappingPending(mappingKey, true);
           const existingMapping = findTopicRubricMapping(topicDatabaseId, usedInRound);
 
           try {
@@ -577,12 +601,14 @@ const AssignmentEditor: React.FC<IEditor> = ({ mode }) => {
               });
             }
 
-            refreshTopicRubricMappings();
+            await refreshTopicRubricMappings();
             dispatch(alertActions.showAlert({ variant: "success", message: "Topic rubric mapping saved successfully" }));
           } catch {
             // useAPI surfaces the request error through saveTopicRubricError.
+          } finally {
+            updateTopicRubricMappingPending(mappingKey, false);
           }
-        }, [dispatch, findTopicRubricMapping, id, refreshTopicRubricMappings, saveTopicRubricMapping]);
+        }, [dispatch, findTopicRubricMapping, id, refreshTopicRubricMappings, saveTopicRubricMapping, updateTopicRubricMappingPending]);
       
 
 
@@ -861,6 +887,7 @@ const AssignmentEditor: React.FC<IEditor> = ({ mode }) => {
             onEditTopic={handleEditTopic}
             onCreateTopic={handleCreateTopic}
             onApplyPartnerAd={handleApplyPartnerAd}
+            isTopicRubricMappingPending={isTopicRubricMappingPending}
             onTopicRubricChange={handleTopicRubricChange}
             onTopicsChanged={() => id && fetchTopics({ url: `/project_topics?assignment_id=${id}` })}
                 />

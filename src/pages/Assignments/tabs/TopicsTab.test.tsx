@@ -84,4 +84,20 @@ describe("TopicsTab topic rubric selectors", () => {
 
     expect(onTopicRubricChange).toHaveBeenCalledWith(10, 8, 2);
   });
+
+  it("disables only the topic rubric selector currently being saved", () => {
+    render(
+      <TopicsTab
+        {...baseProps}
+        varyByTopic
+        varyByRound
+        reviewRounds={2}
+        reviewRubricOptions={[{ label: "Round Rubric", value: 8 }]}
+        isTopicRubricMappingPending={(_topicDatabaseId, usedInRound) => usedInRound === 2}
+      />
+    );
+
+    expect(screen.getByLabelText("Round 1 for Security Topic")).not.toBeDisabled();
+    expect(screen.getByLabelText("Round 2 for Security Topic")).toBeDisabled();
+  });
 });
