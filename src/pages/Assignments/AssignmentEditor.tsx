@@ -2,7 +2,13 @@ import * as Yup from "yup";
 
 import { Button, Modal } from "react-bootstrap";
 import { Form, Formik, FormikHelpers } from "formik";
-import { IAssignmentFormValues, transformAssignmentRequest } from "./AssignmentUtil";
+import {
+  AUTHOR_FEEDBACK_RUBRIC_ROW_KEY,
+  IAssignmentFormValues,
+  TEAMMATE_REVIEW_RUBRIC_ROW_KEY,
+  getSpecialRubricQuestionnaireField,
+  transformAssignmentRequest,
+} from "./AssignmentUtil";
 import { IEditor } from "../../utils/interfaces";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
@@ -63,9 +69,6 @@ interface TopicRubricMapping {
 
 const getTopicRubricMappingKey = (topicDatabaseId: number, usedInRound: number | null) =>
   `${topicDatabaseId}-${usedInRound ?? "default"}`;
-
-const AUTHOR_FEEDBACK_RUBRIC_ROW_KEY = 100;
-const TEAMMATE_REVIEW_RUBRIC_ROW_KEY = 101;
 
 const initialValues: IAssignmentFormValues = {
   name: "",
@@ -767,8 +770,19 @@ const AssignmentEditor: React.FC<IEditor> = ({ mode }) => {
   if (mode === "update") {
     // Prefill per-round questionnaire selections and ids
     (assignmentData.assignment_questionnaires || []).forEach((aq: any) => {
-      if (aq.used_in_round && aq.questionnaire) {
-        formInitialValues[`questionnaire_round_${aq.used_in_round}`] = aq.questionnaire.id;
+      const questionnaireId = aq.questionnaire_id ?? aq.questionnaire?.id;
+      if (!questionnaireId) return;
+
+      const specialRubricField = getSpecialRubricQuestionnaireField(
+        aq.used_in_round,
+        aq.questionnaire?.questionnaire_type ?? aq.questionnaire_type
+      );
+
+      if (specialRubricField) {
+        formInitialValues[specialRubricField.questionnaireField] = questionnaireId;
+        formInitialValues[specialRubricField.assignmentQuestionnaireIdField] = aq.id;
+      } else if (aq.used_in_round) {
+        formInitialValues[`questionnaire_round_${aq.used_in_round}`] = questionnaireId;
         formInitialValues[`assignment_questionnaire_id_${aq.used_in_round}`] = aq.id;
       }
     });
@@ -1001,7 +1015,7 @@ const AssignmentEditor: React.FC<IEditor> = ({ mode }) => {
                             controlId={questionnaireControlId}
                             name={questionnaireFieldName}
                             options={row.original.questionnaire_options || []}
-                          // Formik initialValues handles prefill via questionnaire_round_X fields
+                          // Formik initialValues handles prefill for review and special rubric fields.
                           />
                             );
                           })()}

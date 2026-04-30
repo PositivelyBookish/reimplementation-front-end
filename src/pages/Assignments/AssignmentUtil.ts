@@ -79,27 +79,88 @@ export interface IAssignmentFormValues {
     used_in_round?: number;
     project_topic_id?: number | null;
     questionnaire_id?: number;
-    questionnaire?: { id: number; name: string };
+    questionnaire?: { id: number; name: string; questionnaire_type?: string };
   }[];
   [key: string]: any;
 }
 
+export const AUTHOR_FEEDBACK_RUBRIC_ROW_KEY = 100;
+export const TEAMMATE_REVIEW_RUBRIC_ROW_KEY = 101;
+export const AUTHOR_FEEDBACK_QUESTIONNAIRE_FIELD = "author_feedback_questionnaire";
+export const TEAMMATE_REVIEW_QUESTIONNAIRE_FIELD = "teammate_review_questionnaire";
+export const AUTHOR_FEEDBACK_ASSIGNMENT_QUESTIONNAIRE_ID_FIELD = "author_feedback_assignment_questionnaire_id";
+export const TEAMMATE_REVIEW_ASSIGNMENT_QUESTIONNAIRE_ID_FIELD = "teammate_review_assignment_questionnaire_id";
+
+export const getSpecialRubricQuestionnaireField = (
+  usedInRound?: number | null,
+  questionnaireType?: string | null
+) => {
+  const normalizedUsedInRound =
+    usedInRound === null || usedInRound === undefined ? null : Number(usedInRound);
+  const normalizedQuestionnaireType = questionnaireType?.replace(/\s+/g, "").toLowerCase();
+
+  if (
+    normalizedUsedInRound === AUTHOR_FEEDBACK_RUBRIC_ROW_KEY ||
+    normalizedQuestionnaireType?.includes("authorfeedback")
+  ) {
+    return {
+      rowKey: AUTHOR_FEEDBACK_RUBRIC_ROW_KEY,
+      questionnaireField: AUTHOR_FEEDBACK_QUESTIONNAIRE_FIELD,
+      assignmentQuestionnaireIdField: AUTHOR_FEEDBACK_ASSIGNMENT_QUESTIONNAIRE_ID_FIELD,
+    };
+  }
+
+  if (
+    normalizedUsedInRound === TEAMMATE_REVIEW_RUBRIC_ROW_KEY ||
+    normalizedQuestionnaireType?.includes("teammatereview")
+  ) {
+    return {
+      rowKey: TEAMMATE_REVIEW_RUBRIC_ROW_KEY,
+      questionnaireField: TEAMMATE_REVIEW_QUESTIONNAIRE_FIELD,
+      assignmentQuestionnaireIdField: TEAMMATE_REVIEW_ASSIGNMENT_QUESTIONNAIRE_ID_FIELD,
+    };
+  }
+
+  return null;
+};
 
 export const transformAssignmentRequest = (values: IAssignmentFormValues) => {
   // Build nested attributes for assignment_questionnaires from the per-round form fields to create or update corresponding rows
   const assignmentQuestionnaires: { id?: number; questionnaire_id: number; used_in_round: number }[] = [];
+  const addAssignmentQuestionnaire = (
+    questionnaireField: string,
+    assignmentQuestionnaireIdField: string,
+    usedInRound: number
+  ) => {
+    const questionnaireId = values[questionnaireField];
+    if (!questionnaireId) return;
+
+    assignmentQuestionnaires.push({
+      id: values[assignmentQuestionnaireIdField],
+      questionnaire_id: questionnaireId,
+      used_in_round: usedInRound,
+    });
+  };
+
   const roundCount = values.number_of_review_rounds ?? 0;
   for (let i = 1; i <= roundCount; i += 1) {
-    const questionnaireId = values[`questionnaire_round_${i}`];
-    if (questionnaireId) {
-      const existingId = values[`assignment_questionnaire_id_${i}`];
-      assignmentQuestionnaires.push({
-        id: existingId,
-        questionnaire_id: questionnaireId,
-        used_in_round: i,
-      });
-    }
+    addAssignmentQuestionnaire(
+      `questionnaire_round_${i}`,
+      `assignment_questionnaire_id_${i}`,
+      i
+    );
   }
+
+  addAssignmentQuestionnaire(
+    AUTHOR_FEEDBACK_QUESTIONNAIRE_FIELD,
+    AUTHOR_FEEDBACK_ASSIGNMENT_QUESTIONNAIRE_ID_FIELD,
+    AUTHOR_FEEDBACK_RUBRIC_ROW_KEY
+  );
+  addAssignmentQuestionnaire(
+    TEAMMATE_REVIEW_QUESTIONNAIRE_FIELD,
+    TEAMMATE_REVIEW_ASSIGNMENT_QUESTIONNAIRE_ID_FIELD,
+    TEAMMATE_REVIEW_RUBRIC_ROW_KEY
+  );
 
   const assignment: IAssignmentRequest = {
     // Core fields
@@ -254,6 +315,30 @@ export const transformAssignmentResponse = (assignmentResponse: string) => {
     due_dates: assignment.due_dates,
     assignment_questionnaires: assignment.assignment_questionnaires,
   };
+
+  (assignment.assignment_questionnaires || []).forEach((assignmentQuestionnaire: any) => {
+    const questionnaireId =
+      assignmentQuestionnaire.questionnaire_id ?? assignmentQuestionnaire.questionnaire?.id;
+    if (!questionnaireId) return;
+
+    const specialRubricField = getSpecialRubricQuestionnaireField(
+      assignmentQuestionnaire.used_in_round,
+      assignmentQuestionnaire.questionnaire?.questionnaire_type ?? assignmentQuestionnaire.questionnaire_type
+    );
+
+    if (specialRubricField) {
+      assignmentValues[specialRubricField.questionnaireField] = questionnaireId;
+      assignmentValues[specialRubricField.assignmentQuestionnaireIdField] = assignmentQuestionnaire.id;
+      return;
+    }
+
+    if (assignmentQuestionnaire.used_in_round) {
+      assignmentValues[`questionnaire_round_${assignmentQuestionnaire.used_in_round}`] = questionnaireId;
+      assignmentValues[`assignment_questionnaire_id_${assignmentQuestionnaire.used_in_round}`] =
+        assignmentQuestionnaire.id;
+    }
+  });
+
   return assignmentValues;
 };
 
